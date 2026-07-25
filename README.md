@@ -199,6 +199,9 @@ DeepTutor is an agent-native learning workspace that connects tutoring, problem 
 
 DeepTutor ships four installation paths. They all share one workspace layout: settings live in `data/user/settings/` under the directory you launch from (or under `DEEPTUTOR_HOME` / `deeptutor start --home` if you set one explicitly). For the full app, the recommended flow is **pick a workspace directory → install → `deeptutor init` → `deeptutor start`**.
 
+> Developing the independent SeleiXi feature branches? [Feature Lab](FEATURE_LAB.md)
+> starts all variants side by side with isolated worktrees, data, logs, and ports.
+
 <details>
 <summary><b>Option 1 — Install From PyPI</b> · full local Web app + CLI, no clone required</summary>
 
