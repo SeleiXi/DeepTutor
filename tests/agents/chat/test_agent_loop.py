@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from deeptutor.agents.chat.agent_loop import InlineThinkFilter
+from deeptutor.agents.chat.agent_loop import AgentLoop, InlineThinkFilter
 from deeptutor.agents.chat.agentic_pipeline import AgenticChatPipeline
 from deeptutor.capabilities.explore_context import explorer as explorer_mod
 from deeptutor.capabilities.mastery import MASTERY_TOOL_NAMES
@@ -244,6 +244,49 @@ class TestInlineThinkFilter:
         segs = self._run(["<think>1</think>mid<think>2</think>end"])
         assert self._join(segs, "content") == "midend"
         assert self._join(segs, "thinking") == "12"
+
+
+@pytest.mark.asyncio
+async def test_guided_question_mode_forces_ask_user_tool_choice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = _Registry()
+    client = _ScriptedChatClient([[_llm_chunk(content="")]])
+    pipeline = AgenticChatPipeline(language="en")
+    pipeline.registry = registry
+    monkeypatch.setattr(pipeline, "_build_openai_client", lambda: client)
+    context = UnifiedContext(
+        session_id="guided",
+        user_message="Help me",
+        config_overrides={"guided_question_mode": True},
+    )
+    bus = StreamBus()
+    events, consumer = await _collect_bus_events(bus)
+    loop = AgentLoop(
+        pipeline=pipeline,
+        context=context,
+        stream=bus,
+        client=client,
+        enabled_tools=["ask_user"],
+        tool_schemas=registry.build_openai_schemas(["ask_user"]),
+    )
+
+    await loop._call_llm(
+        messages=[{"role": "user", "content": "Help me"}],
+        label="guided",
+        call_kind="test",
+        trace_role="test",
+        max_tokens=100,
+        tool_schemas=loop.tool_schemas,
+        forced_tool_name="ask_user",
+    )
+    await bus.close()
+    await consumer
+
+    assert client.calls[0]["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "ask_user"},
+    }
 
 
 @pytest.mark.asyncio

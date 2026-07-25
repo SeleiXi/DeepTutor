@@ -2908,5 +2908,8 @@
   "Running {{app}}": "Running {{app}}",
   "Product names and logos are trademarks of their respective owners, shown for identification only.": "Product names and logos are trademarks of their respective owners, shown for identification only.",
   "Needs authorization": "Needs authorization",
-  "Reauthorize": "Reauthorize"
+  "Reauthorize": "Reauthorize",
+  "Guided Questions": "Guided Questions",
+  "Guide me": "Guide me",
+  "Ask me clarifying questions before answering this turn": "Ask me clarifying questions before answering this turn"
 }

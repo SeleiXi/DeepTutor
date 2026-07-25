@@ -1546,7 +1546,10 @@ export default function ChatPage() {
   }, []);
 
   const handleSend = useCallback(
-    async (content: string) => {
+    async (
+      content: string,
+      composerOptions?: { guidedQuestionMode?: boolean },
+    ) => {
       if (
         (!content &&
           !attachments.length &&
@@ -1588,6 +1591,9 @@ export default function ChatPage() {
       if (isResearchMode) {
         if (!researchValidation.valid) return;
         config = buildResearchWSConfig(researchConfig);
+      }
+      if (composerOptions?.guidedQuestionMode) {
+        config = { ...(config ?? {}), guided_question_mode: true };
       }
       // When a connected agent is selected, carry the per-turn consult budget
       // (how many times DeepTutor may ask it) so the subagent capability uses it.

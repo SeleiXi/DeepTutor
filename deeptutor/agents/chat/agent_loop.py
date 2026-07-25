@@ -256,6 +256,13 @@ class AgentLoop:
                     trace_role="explore",
                     max_tokens=self.pipeline.loop_max_tokens,
                     tool_schemas=self.tool_schemas,
+                    forced_tool_name=(
+                        "ask_user"
+                        if _round == 0
+                        and self.context.config_overrides.get("guided_question_mode")
+                        is True
+                        else None
+                    ),
                 )
             except Exception as exc:
                 # A mid-loop LLM failure (timeout / transient network) must not
@@ -444,6 +451,7 @@ class AgentLoop:
         trace_role: str,
         max_tokens: int,
         tool_schemas: list[dict[str, Any]] | None = None,
+        forced_tool_name: str | None = None,
     ) -> LLMCallResult:
         await self.pipeline._guard_context_window(messages, self.stream)
         stage = LOOP_STAGE
@@ -477,7 +485,19 @@ class AgentLoop:
             kwargs["stream_options"] = {"include_usage": True}
         if tool_schemas:
             kwargs["tools"] = tool_schemas
-            kwargs["tool_choice"] = "auto"
+            tool_names = {
+                str((schema.get("function") or {}).get("name") or "")
+                for schema in tool_schemas
+                if isinstance(schema, dict)
+            }
+            kwargs["tool_choice"] = (
+                {
+                    "type": "function",
+                    "function": {"name": forced_tool_name},
+                }
+                if forced_tool_name and forced_tool_name in tool_names
+                else "auto"
+            )
         # What this request actually carried, pinned now: the loop keeps
         # appending to ``messages`` and the deferred loader keeps appending to
         # ``tool_schemas``, so the turn's context budget is read off the last

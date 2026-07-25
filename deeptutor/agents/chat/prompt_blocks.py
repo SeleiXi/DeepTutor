@@ -71,6 +71,9 @@ class ChatPromptAssembler:
             PromptBlock("runtime_policy", self._t("runtime_policy")),
             PromptBlock("loop", self._t("loop.system")),
         ]
+        guided_policy = self._guided_question_policy(context)
+        if guided_policy:
+            blocks.append(PromptBlock("user_selected_guided_question_mode", guided_policy))
         # Capability playbooks sit high so they frame the whole turn when active;
         # empty blocks are omitted by ``system_prompt``'s join.
         blocks.extend(capability_blocks or [])
@@ -137,6 +140,28 @@ class ChatPromptAssembler:
         if not str(identity.get("name") or "").strip():
             return ""
         return self._t("partner_turn_policy", default="")
+
+    def _guided_question_policy(self, context: UnifiedContext) -> str:
+        """Honor the learner's explicit, per-turn request to be interviewed first."""
+        if context.config_overrides.get("guided_question_mode") is not True:
+            return ""
+        if self.language == "zh":
+            return (
+                "用户已为这一轮明确开启“引导式发问”。你的第一个动作必须调用 "
+                "`ask_user`，提出 1–3 个高信息量问题，帮助补齐任务目标、已有背景、"
+                "困惑点或期望讲解方式。不要在获得回答前直接解决原问题。问题应针对"
+                "当前请求，不要询问用户已经提供的信息。收到回答后继续完成原始任务；"
+                "除非仍有实质性歧义，否则不要重复发问。"
+            )
+        return (
+            "The user explicitly enabled Guided Questions for this turn. Your "
+            "first action MUST be an `ask_user` call with 1–3 high-information "
+            "questions that clarify the goal, prior context, sticking point, or "
+            "preferred teaching approach. Do not solve the original request "
+            "before the answers arrive. Ask only about information the user has "
+            "not already provided. After the reply, complete the original task "
+            "without another interview unless a material ambiguity remains."
+        )
 
     def user_message(
         self,

@@ -2908,5 +2908,8 @@
   "Running {{app}}": "运行 {{app}}",
   "Product names and logos are trademarks of their respective owners, shown for identification only.": "产品名称与标识为其各自所有者的商标，此处仅用于标识。",
   "Needs authorization": "待授权",
-  "Reauthorize": "重新授权"
+  "Reauthorize": "重新授权",
+  "Guided Questions": "引导式发问",
+  "Guide me": "先问我",
+  "Ask me clarifying questions before answering this turn": "本轮回答前，先向我提问以补全目标、背景或困惑"
 }

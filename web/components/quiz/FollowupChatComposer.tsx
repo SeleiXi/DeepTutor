@@ -638,6 +638,7 @@ function FollowupChatComposerImpl({ context }: FollowupChatComposerProps) {
         selectedKnowledgeBases={selectedKnowledgeBases}
         isStreaming={thread.isStreaming}
         isVisualizeMode={false}
+        guidedQuestionAvailable={false}
         capabilityNeedsConfig={false}
         capabilityConfigConfirmed={true}
         onRequestConfigConfirm={() => {}}

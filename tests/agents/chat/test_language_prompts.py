@@ -121,3 +121,35 @@ def test_prompt_blocks_include_localized_optional_context() -> None:
     assert "workspace" in names
     assert assembler.user_message(context=ctx) == "用户说：解释光合作用"
     assert assembler.finish_exhausted_instruction() == "预算已用完，请直接回答。"
+
+
+@pytest.mark.parametrize(
+    ("language", "expected"),
+    [
+        ("en", "first action MUST be an `ask_user` call"),
+        ("zh", "第一个动作必须调用 `ask_user`"),
+    ],
+)
+def test_user_selected_guided_question_mode_is_a_first_action_policy(
+    language: str,
+    expected: str,
+) -> None:
+    from deeptutor.core.context import UnifiedContext
+
+    assembler = ChatPromptAssembler(
+        prompts={"general": "general", "runtime_policy": "policy", "loop": {"system": "loop"}},
+        language=language,
+    )
+    enabled = UnifiedContext(config_overrides={"guided_question_mode": True})
+    disabled = UnifiedContext(config_overrides={"guided_question_mode": False})
+
+    enabled_blocks = assembler.blocks(context=enabled, tool_manifest="- ask_user")
+    disabled_blocks = assembler.blocks(context=disabled, tool_manifest="- ask_user")
+    guided = next(
+        block for block in enabled_blocks if block.name == "user_selected_guided_question_mode"
+    )
+
+    assert expected in guided.content
+    assert all(
+        block.name != "user_selected_guided_question_mode" for block in disabled_blocks
+    )

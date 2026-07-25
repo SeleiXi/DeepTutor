@@ -18,6 +18,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  CircleHelp,
   ClipboardList,
   Loader2,
   MessageSquare,
@@ -208,6 +209,7 @@ export default memo(function ChatComposer({
   selectedKnowledgeBases,
   isStreaming,
   isVisualizeMode,
+  guidedQuestionAvailable = true,
   capabilityNeedsConfig,
   capabilityConfigConfirmed,
   onRequestConfigConfirm,
@@ -297,6 +299,8 @@ export default memo(function ChatComposer({
   selectedKnowledgeBases: string[];
   isStreaming: boolean;
   isVisualizeMode: boolean;
+  /** Whether this surface/capability can pause the same turn via ask_user. */
+  guidedQuestionAvailable?: boolean;
   /**
    * True when the active capability (e.g. Quiz / Visualize / Research)
    * requires explicit configuration before sending. When true, `canSend`
@@ -336,7 +340,10 @@ export default memo(function ChatComposer({
   /** Hide the My Agents reference entry (e.g. the quiz follow-up surface). */
   agentsAvailable?: boolean;
   onToggleMemoryFile: (file: SpaceMemoryFile) => void;
-  onSend: (content: string) => void;
+  onSend: (
+    content: string,
+    options?: { guidedQuestionMode?: boolean },
+  ) => void;
   onRemoveAttachment: (index: number) => void;
   onPreviewAttachment?: (index: number) => void;
   onRemoveHistory: (sessionId: string) => void;
@@ -366,6 +373,7 @@ export default memo(function ChatComposer({
   const CapIcon = activeCap.icon;
 
   const [hasContent, setHasContent] = useState(false);
+  const [guidedQuestionMode, setGuidedQuestionMode] = useState(false);
   const [moreCapsOpen, setMoreCapsOpen] = useState(false);
   const [lastCapMenuOpen, setLastCapMenuOpen] = useState(capMenuOpen);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -482,16 +490,24 @@ export default memo(function ChatComposer({
 
   const doSend = useCallback(
     (content: string) => {
-      onSend(content);
+      onSend(content, { guidedQuestionMode });
       setHasContent(false);
+      setGuidedQuestionMode(false);
       inputHandleRef.current?.clear();
       // Sending can move focus to the button or rerender the empty-state
       // composer into the conversation layout. Restore it after that update
       // so the user can keep typing, including after switching back to the tab.
       focusTextarea();
     },
-    [focusTextarea, onSend],
+    [focusTextarea, guidedQuestionMode, onSend],
   );
+
+  const guidedModeSupported =
+    guidedQuestionAvailable &&
+    !["deep_question", "deep_research", "visualize"].includes(activeCap.value);
+  useEffect(() => {
+    if (!guidedModeSupported) setGuidedQuestionMode(false);
+  }, [guidedModeSupported]);
 
   const hasReferences =
     !!attachments.length ||
@@ -1039,6 +1055,26 @@ export default memo(function ChatComposer({
               </div>
 
               <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                {guidedModeSupported ? (
+                  <button
+                    type="button"
+                    onClick={() => setGuidedQuestionMode((enabled) => !enabled)}
+                    disabled={isStreaming}
+                    aria-pressed={guidedQuestionMode}
+                    aria-label={t("Guided Questions")}
+                    title={t(
+                      "Ask me clarifying questions before answering this turn",
+                    )}
+                    className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[12px] font-medium transition-[background-color,color,transform] active:scale-95 disabled:opacity-40 ${
+                      guidedQuestionMode
+                        ? "bg-[var(--primary)]/10 text-[var(--primary)] ring-1 ring-inset ring-[var(--primary)]/20"
+                        : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/55 hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    <CircleHelp size={16} strokeWidth={1.8} />
+                    {composerCompact ? null : <span>{t("Guide me")}</span>}
+                  </button>
+                ) : null}
                 {connectedAgents.length > 0 && onSelectAgent ? (
                   <AgentSelector
                     agents={connectedAgents}
