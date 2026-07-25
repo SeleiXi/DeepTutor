@@ -4,7 +4,8 @@ There is no bespoke state machine here anymore. The chat agent loop IS the
 tutor: this capability only marks the turn as mastery mode and resolves the
 active path id, then runs the standard agentic chat pipeline. The pipeline
 mounts the mastery tools (``mastery_status`` / ``mastery_quiz`` /
-``mastery_grade`` / ``mastery_assess`` / ``mastery_build``) and injects the
+``mastery_grade`` / ``mastery_diagnose`` / ``mastery_assess`` /
+``mastery_build``) and injects the
 tutor playbook; the pure engine in :mod:`deeptutor.learning` owns the hard,
 per-type mastery gate and the spaced-repetition arithmetic.
 

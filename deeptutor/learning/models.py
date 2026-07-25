@@ -182,6 +182,25 @@ class PendingQuestion(BaseModel):
     created_at: float = Field(default_factory=time.time)
 
 
+class DiagnosticContext(BaseModel):
+    """Structured causal context collected after a failed mastery gate."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    knowledge_point_id: str
+    status: Literal["pending", "complete"] = "pending"
+    barrier_type: str = ""
+    prerequisite_gap: str = ""
+    learning_context: str = ""
+    self_attribution: str = ""
+    preferred_support: str = ""
+    evidence: str = ""
+    source_question_id: str = ""
+    failures_since_update: int = 0
+    created_at: float = Field(default_factory=time.time)
+    updated_at: float = Field(default_factory=time.time)
+
+
 class LearningProgress(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -208,6 +227,7 @@ class LearningProgress(BaseModel):
     feynman_explanations: dict[str, str] = Field(default_factory=dict)
     stage_failure_counts: dict[str, int] = Field(default_factory=dict)
     stage_failure_notes: dict[str, str] = Field(default_factory=dict)
+    diagnostic_contexts: dict[str, DiagnosticContext] = Field(default_factory=dict)
     version: int = 0
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
@@ -226,5 +246,6 @@ __all__ = [
     "RepetitionState",
     "ReviewTask",
     "PendingQuestion",
+    "DiagnosticContext",
     "LearningProgress",
 ]

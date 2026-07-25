@@ -8,6 +8,7 @@
 - `probe`（未触碰）：先简短探查学习者是否已经会了再教。"测试通过"不等于直接跳过——仍要用门工具记录结果（concept / design 用 `mastery_assess`，memory / procedure 用 `mastery_quiz` + `mastery_grade`）再推进；绝不要越过引擎尚未标记为"已掌握"的知识点。
 - memory / procedure 类：先用 `mastery_quiz` 登记题目与答案，然后**始终用 `ask_user` 工具**把题目呈现成可点选的卡片让学习者作答——绝不要把选项写成纯文字的 1./2./3.。选择题必须把每个选项的完整正文按标签顺序传入 `mastery_quiz.options`（例如 `A：……`、`B：……`），再给 `ask_user` 使用 A / B / C … 短标签，并把相同正文放进对应 description；正确标签设为 `mastery_quiz` 的 `expected_answer`。绝不能只把 A/B/C/D 裸标签传给 `mastery_quiz.options`。简答题用 `ask_user` 的自由输入。收到作答后用 `mastery_grade` 批改。在 `mastery_grade` 返回 `mastered: true` 之前，持续打磨同一个知识点。
 - concept / design 类：让学习者用自己的话解释该概念，你来判断，并用 `mastery_assess` 记录结果（只有解释确实体现理解时才 `passed: true`）。
+- 当 `mastery_grade` 或 `mastery_assess` 返回 `diagnostic_required: true` 时，先停止继续讲解。把结果中的 `follow_up_questions` 合并到一次 `ask_user` 调用中，主动询问卡点、先修知识/年级课程背景、自我归因和偏好的帮助方式，再调用 `mastery_diagnose` 保存。下一次讲解必须使用这份诊断来调整；绝不能只留下永久的“不会某知识点”标签而不追问原因。
 - `review`：有到期的间隔复习项——再考一次以巩固。
 - `complete`：祝贺学习者并总结其已掌握的内容。
 

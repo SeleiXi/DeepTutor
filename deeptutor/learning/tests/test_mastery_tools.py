@@ -14,6 +14,7 @@ from deeptutor.services.session.sqlite_store import SQLiteSessionStore
 from deeptutor.tools.mastery_tool import (
     MasteryAssessTool,
     MasteryBuildTool,
+    MasteryDiagnoseTool,
     MasteryGradeTool,
     MasteryQuizTool,
     MasteryStatusTool,
@@ -185,6 +186,125 @@ async def test_wrong_answer_does_not_master(path_id):
     )
     assert result["is_correct"] is False
     assert result["mastered"] is False
+
+
+@pytest.mark.asyncio
+async def test_wrong_answer_requires_localized_causal_follow_up(path_id):
+    await _build_basic(path_id)
+    status = json.loads((await MasteryStatusTool().execute(_mastery_path_id=path_id)).content)
+    kp_id = status["next"]["knowledge_point_id"]
+    await MasteryQuizTool().execute(
+        _mastery_path_id=path_id,
+        knowledge_point_id=kp_id,
+        question="2+2?",
+        expected_answer="4",
+    )
+
+    result = json.loads(
+        (
+            await MasteryGradeTool().execute(
+                _mastery_path_id=path_id,
+                _language="zh",
+                answer="5",
+            )
+        ).content
+    )
+
+    assert result["diagnostic_required"] is True
+    assert result["diagnostic_context"]["status"] == "pending"
+    assert [question["id"] for question in result["follow_up_questions"]] == [
+        "barrier",
+        "learning_context",
+        "preferred_support",
+    ]
+    assert "最卡" in result["follow_up_questions"][0]["prompt"]
+    assert "mastery_diagnose" in result["instruction"]
+
+
+@pytest.mark.asyncio
+async def test_diagnose_persists_context_for_future_tutor_turns(path_id):
+    await _build_basic(path_id)
+    status = json.loads((await MasteryStatusTool().execute(_mastery_path_id=path_id)).content)
+    kp_id = status["next"]["knowledge_point_id"]
+    await MasteryQuizTool().execute(
+        _mastery_path_id=path_id,
+        knowledge_point_id=kp_id,
+        question="What is XOR?",
+        expected_answer="exclusive or",
+    )
+    await MasteryGradeTool().execute(_mastery_path_id=path_id, answer="OR")
+
+    diagnosed = json.loads(
+        (
+            await MasteryDiagnoseTool().execute(
+                _mastery_path_id=path_id,
+                knowledge_point_id=kp_id,
+                barrier_type="prerequisite_gap",
+                prerequisite_gap="I do not understand ordinary truth tables.",
+                learning_context="High-school computer science, first logic chapter.",
+                self_attribution="I memorized the symbols without understanding rows.",
+                preferred_support="Rebuild prerequisites step by step.",
+                evidence="The AND/OR rows are also uncertain.",
+            )
+        ).content
+    )
+    assert diagnosed["status"] == "recorded"
+    assert diagnosed["diagnostic_context"]["status"] == "complete"
+
+    next_turn = json.loads(
+        (await MasteryStatusTool().execute(_mastery_path_id=path_id)).content
+    )
+    context = next_turn["diagnostic_context"]
+    assert context["barrier_type"] == "prerequisite_gap"
+    assert context["learning_context"].startswith("High-school")
+    assert context["failures_since_update"] == 0
+
+
+@pytest.mark.asyncio
+async def test_diagnose_rejects_unknown_barrier(path_id):
+    await _build_basic(path_id)
+    status = json.loads((await MasteryStatusTool().execute(_mastery_path_id=path_id)).content)
+    result = await MasteryDiagnoseTool().execute(
+        _mastery_path_id=path_id,
+        knowledge_point_id=status["next"]["knowledge_point_id"],
+        barrier_type="mystery",
+    )
+    assert result.success is False
+
+
+@pytest.mark.asyncio
+async def test_repeated_failures_reopen_stale_diagnosis(path_id):
+    await _build_basic(path_id)
+    status = json.loads((await MasteryStatusTool().execute(_mastery_path_id=path_id)).content)
+    kp_id = status["next"]["knowledge_point_id"]
+    await MasteryQuizTool().execute(
+        _mastery_path_id=path_id,
+        knowledge_point_id=kp_id,
+        question="q",
+        expected_answer="a",
+    )
+    await MasteryGradeTool().execute(_mastery_path_id=path_id, answer="wrong")
+    await MasteryDiagnoseTool().execute(
+        _mastery_path_id=path_id,
+        knowledge_point_id=kp_id,
+        barrier_type="misconception",
+        self_attribution="I mixed up two definitions.",
+    )
+
+    required = []
+    for _ in range(3):
+        await MasteryQuizTool().execute(
+            _mastery_path_id=path_id,
+            knowledge_point_id=kp_id,
+            question="q",
+            expected_answer="a",
+        )
+        result = json.loads(
+            (await MasteryGradeTool().execute(_mastery_path_id=path_id, answer="wrong")).content
+        )
+        required.append(result["diagnostic_required"])
+
+    assert required == [False, False, True]
 
 
 @pytest.mark.asyncio

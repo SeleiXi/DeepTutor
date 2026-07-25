@@ -47,6 +47,7 @@ class MasteryLoopCapability:
             updated["_mastery_path_id"] = str(context.metadata.get("mastery_path_id") or "").strip()
             updated["_session_id"] = str(context.session_id or "").strip()
             updated["_turn_id"] = str(context.metadata.get("turn_id") or "").strip()
+            updated["_language"] = str(context.language or "en")
             return updated
         return kwargs
 

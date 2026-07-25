@@ -1,7 +1,7 @@
 """Mastery Path tools — the seam between the chat-loop tutor and the pure
 mastery engine (:mod:`deeptutor.learning`).
 
-These five tools are auto-mounted only when a mastery path is active on the
+These six tools are auto-mounted only when a mastery path is active on the
 turn (via the chat loop mastery capability). The chat agent loop IS the tutor;
 these tools let it read the gate and record outcomes, while the pedagogy —
 what to teach, how to question, when to explain — stays the model's job. The
@@ -60,13 +60,140 @@ MASTERY_TOOL_NAMES: tuple[str, ...] = (
     "mastery_status",
     "mastery_quiz",
     "mastery_grade",
+    "mastery_diagnose",
     "mastery_assess",
     "mastery_build",
 )
 
 _QUESTION_TYPES = ("choice", "short", "open")
 _ALLOWED_KP_TYPES = {t.value for t in KnowledgeType}
+_BARRIER_TYPES = {
+    "prerequisite_gap",
+    "misconception",
+    "procedural_gap",
+    "language_or_notation",
+    "unfamiliar_context",
+    "memory_load",
+    "metacognitive",
+    "other",
+}
 logger = logging.getLogger(__name__)
+
+
+def _diagnostic_payload(context: Any) -> dict[str, Any]:
+    return context.model_dump(mode="json") if context is not None else {}
+
+
+def _follow_up_questions(language: str = "en") -> list[dict[str, Any]]:
+    if language == "zh":
+        return [
+            {
+                "id": "barrier",
+                "prompt": "你目前最卡在哪一部分？",
+                "options": [
+                    {
+                        "label": "先修知识缺口",
+                        "description": "更早的概念、公式或技能还不够扎实。",
+                    },
+                    {
+                        "label": "概念没想通",
+                        "description": "含义或直觉仍然没有建立起来。",
+                    },
+                    {
+                        "label": "理解但不会用",
+                        "description": "能听懂讲解，但不会应用到题目里。",
+                    },
+                    {
+                        "label": "符号或题意陌生",
+                        "description": "不熟悉符号、术语或题目背景。",
+                    },
+                ],
+            },
+            {
+                "id": "learning_context",
+                "prompt": (
+                    "你上一次在哪里学到相关先修内容（例如年级、课程、章节）？"
+                    "具体还有哪里不确定？"
+                ),
+                "options": [],
+            },
+            {
+                "id": "preferred_support",
+                "prompt": "接下来你希望我用哪种方式帮助你？",
+                "options": [
+                    {
+                        "label": "补齐先修知识",
+                        "description": "先退回一步，修补缺失的基础。",
+                    },
+                    {
+                        "label": "换个例子讲",
+                        "description": "用具体类比或不同例子重新解释。",
+                    },
+                    {
+                        "label": "分步引导我推导",
+                        "description": "拆成更小的问题，让我一步步得出答案。",
+                    },
+                    {
+                        "label": "讲考试技巧",
+                        "description": "聚焦识别线索和高效做题方法。",
+                    },
+                ],
+            },
+        ]
+    return [
+        {
+            "id": "barrier",
+            "prompt": "Which part is blocking you most?",
+            "options": [
+                {
+                    "label": "Missing prerequisite",
+                    "description": "An earlier idea, formula, or skill is not solid yet.",
+                },
+                {
+                    "label": "Concept unclear",
+                    "description": "The meaning or intuition still does not click.",
+                },
+                {
+                    "label": "Cannot apply it",
+                    "description": "I understand the explanation but cannot use it in a problem.",
+                },
+                {
+                    "label": "Notation or wording",
+                    "description": "Symbols, terminology, or the problem context are unfamiliar.",
+                },
+            ],
+        },
+        {
+            "id": "learning_context",
+            "prompt": (
+                "Where did you last study the prerequisite material (for example grade, "
+                "course, chapter), and what specifically still feels uncertain?"
+            ),
+            "options": [],
+        },
+        {
+            "id": "preferred_support",
+            "prompt": "What kind of help should we try next?",
+            "options": [
+                {
+                    "label": "Rebuild prerequisites",
+                    "description": "Back up and repair the missing foundation first.",
+                },
+                {
+                    "label": "Use a new example",
+                    "description": "Explain through a concrete analogy or different example.",
+                },
+                {
+                    "label": "Guide step by step",
+                    "description": "Ask smaller questions and let me derive the answer.",
+                },
+                {
+                    "label": "Show exam strategy",
+                    "description": "Focus on recognition cues and efficient problem-solving.",
+                },
+            ],
+        },
+    ]
 
 
 def _new_service() -> LearningService:
@@ -86,6 +213,10 @@ def _resolve_session_id(kwargs: dict[str, Any]) -> str:
 
 def _resolve_turn_id(kwargs: dict[str, Any]) -> str:
     return str(kwargs.get("_turn_id") or "").strip()
+
+
+def _resolve_language(kwargs: dict[str, Any]) -> str:
+    return "zh" if str(kwargs.get("_language") or "").lower().startswith("zh") else "en"
 
 
 def _question_bank_type(question_type: str) -> str:
@@ -211,6 +342,11 @@ class MasteryStatusTool(BaseTool):
             "next": next_objective(progress).to_dict(),
             "map": map_summary(progress),
         }
+        kp_id = str(payload["next"].get("knowledge_point_id") or "")
+        if kp_id and kp_id in progress.diagnostic_contexts:
+            payload["diagnostic_context"] = _diagnostic_payload(
+                progress.diagnostic_contexts[kp_id]
+            )
         return _json_result(payload, meta_key="mastery_status")
 
 
@@ -416,6 +552,14 @@ class MasteryGradeTool(BaseTool):
         service.clear_pending_question(progress)
         kp, _, _ = find_knowledge_point(progress, pending.knowledge_point_id)
         mastered = bool(kp and is_mastered(progress, kp))
+        diagnostic = None
+        if not is_correct:
+            diagnostic = service.request_diagnostic(
+                progress,
+                pending.knowledge_point_id,
+                source_question_id=pending.question_id,
+                evidence=answer,
+            )
         payload = {
             "is_correct": is_correct,
             "knowledge_point_id": pending.knowledge_point_id,
@@ -424,7 +568,124 @@ class MasteryGradeTool(BaseTool):
             "mastered": mastered,
             "next": next_objective(progress).to_dict(),
         }
+        if diagnostic is not None:
+            payload.update(
+                {
+                    "diagnostic_required": diagnostic.status == "pending",
+                    "diagnostic_context": _diagnostic_payload(diagnostic),
+                    "follow_up_questions": _follow_up_questions(_resolve_language(kwargs)),
+                    "instruction": (
+                        "Before teaching more, use ask_user with follow_up_questions, "
+                        "then store the learner's answers with mastery_diagnose."
+                    ),
+                }
+            )
         return _json_result(payload, meta_key="mastery_grade")
+
+
+class MasteryDiagnoseTool(BaseTool):
+    """Persist why the learner is blocked and how the next explanation should adapt."""
+
+    def get_definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="mastery_diagnose",
+            description=(
+                "Record the learner's causal context after a failed mastery gate. "
+                "Call this after presenting the diagnostic follow-up through ask_user. "
+                "The stored context is returned by mastery_status on future turns."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="knowledge_point_id",
+                    type="string",
+                    description="Objective id from the failed mastery result.",
+                ),
+                ToolParameter(
+                    name="barrier_type",
+                    type="string",
+                    description=(
+                        "One of prerequisite_gap, misconception, procedural_gap, "
+                        "language_or_notation, unfamiliar_context, memory_load, "
+                        "metacognitive, other."
+                    ),
+                ),
+                ToolParameter(
+                    name="prerequisite_gap",
+                    type="string",
+                    description="Specific earlier knowledge or skill that appears weak.",
+                    required=False,
+                ),
+                ToolParameter(
+                    name="learning_context",
+                    type="string",
+                    description="Grade/course/chapter/background context supplied by the learner.",
+                    required=False,
+                ),
+                ToolParameter(
+                    name="self_attribution",
+                    type="string",
+                    description="The learner's own explanation of why they were blocked.",
+                    required=False,
+                ),
+                ToolParameter(
+                    name="preferred_support",
+                    type="string",
+                    description="How the learner wants the tutor to adapt next.",
+                    required=False,
+                ),
+                ToolParameter(
+                    name="evidence",
+                    type="string",
+                    description="Short supporting quote or summary from the learner's replies.",
+                    required=False,
+                ),
+            ],
+        )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        path_id = _resolve_path_id(kwargs)
+        if not path_id:
+            return _no_path_result()
+        kp_id = str(kwargs.get("knowledge_point_id") or "").strip()
+        barrier_type = str(kwargs.get("barrier_type") or "").strip()
+        if not kp_id:
+            return ToolResult(
+                content="mastery_diagnose needs a knowledge_point_id.",
+                success=False,
+            )
+        if barrier_type not in _BARRIER_TYPES:
+            return ToolResult(
+                content=f"Unsupported barrier_type {barrier_type!r}.",
+                success=False,
+            )
+        service = _new_service()
+        progress = service.get_or_create(path_id)
+        kp, _, _ = find_knowledge_point(progress, kp_id)
+        if kp is None:
+            return ToolResult(
+                content=f"Unknown objective {kp_id!r}; call mastery_status for valid ids.",
+                success=False,
+            )
+        context = service.record_diagnostic(
+            progress,
+            kp_id,
+            barrier_type=barrier_type,
+            prerequisite_gap=str(kwargs.get("prerequisite_gap") or "").strip(),
+            learning_context=str(kwargs.get("learning_context") or "").strip(),
+            self_attribution=str(kwargs.get("self_attribution") or "").strip(),
+            preferred_support=str(kwargs.get("preferred_support") or "").strip(),
+            evidence=str(kwargs.get("evidence") or "").strip(),
+        )
+        payload = {
+            "status": "recorded",
+            "diagnostic_context": _diagnostic_payload(context),
+            "next": next_objective(progress).to_dict(),
+            "instruction": (
+                "Adapt the next explanation to this diagnostic context before "
+                "testing the same objective again."
+            ),
+        }
+        return _json_result(payload, meta_key="mastery_diagnose")
 
 
 class MasteryAssessTool(BaseTool):
@@ -488,6 +749,14 @@ class MasteryAssessTool(BaseTool):
                 success=False,
             )
         service.record_qualitative(progress, kp_id, passed=passed, evidence=feedback)
+        diagnostic = None
+        if not passed:
+            diagnostic = service.request_diagnostic(
+                progress,
+                kp_id,
+                source_question_id=f"qualitative:{kp_id}",
+                evidence=feedback,
+            )
         payload = {
             "knowledge_point_id": kp_id,
             "passed": passed,
@@ -495,6 +764,18 @@ class MasteryAssessTool(BaseTool):
             "mastery": round(display_mastery(progress, kp), 3),
             "next": next_objective(progress).to_dict(),
         }
+        if diagnostic is not None:
+            payload.update(
+                {
+                    "diagnostic_required": diagnostic.status == "pending",
+                    "diagnostic_context": _diagnostic_payload(diagnostic),
+                    "follow_up_questions": _follow_up_questions(_resolve_language(kwargs)),
+                    "instruction": (
+                        "Before teaching more, use ask_user with follow_up_questions, "
+                        "then store the learner's answers with mastery_diagnose."
+                    ),
+                }
+            )
         return _json_result(payload, meta_key="mastery_assess")
 
 
@@ -638,6 +919,7 @@ MASTERY_TOOL_TYPES: tuple[type[BaseTool], ...] = (
     MasteryStatusTool,
     MasteryQuizTool,
     MasteryGradeTool,
+    MasteryDiagnoseTool,
     MasteryAssessTool,
     MasteryBuildTool,
 )
@@ -649,6 +931,7 @@ __all__ = [
     "MasteryStatusTool",
     "MasteryQuizTool",
     "MasteryGradeTool",
+    "MasteryDiagnoseTool",
     "MasteryAssessTool",
     "MasteryBuildTool",
 ]

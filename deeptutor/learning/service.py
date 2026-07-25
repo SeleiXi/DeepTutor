@@ -8,6 +8,7 @@ import uuid
 from deeptutor.learning.grading import classify_error, grade_answer
 from deeptutor.learning.mastery import compute_mastery
 from deeptutor.learning.models import (
+    DiagnosticContext,
     ErrorRecord,
     LearningModule,
     LearningProgress,
@@ -60,6 +61,9 @@ class LearningService:
         }
         progress.feynman_explanations = {
             k: v for k, v in progress.feynman_explanations.items() if k in new_kp_ids
+        }
+        progress.diagnostic_contexts = {
+            k: v for k, v in progress.diagnostic_contexts.items() if k in new_kp_ids
         }
         progress.review_queue = [
             t for t in progress.review_queue if t.knowledge_point_id in new_kp_ids
@@ -243,6 +247,81 @@ class LearningService:
             progress.feynman_explanations[kp_id] = evidence
         progress.updated_at = time.time()
         self.save(progress)
+
+    def request_diagnostic(
+        self,
+        progress: LearningProgress,
+        kp_id: str,
+        *,
+        source_question_id: str = "",
+        evidence: str = "",
+    ) -> DiagnosticContext:
+        """Create or reopen a causal follow-up after failed mastery evidence.
+
+        A completed diagnosis is reused for two subsequent failures. The third
+        failure reopens it so a stale explanation cannot live forever.
+        """
+        now = time.time()
+        context = progress.diagnostic_contexts.get(kp_id)
+        if context is None:
+            context = DiagnosticContext(
+                knowledge_point_id=kp_id,
+                source_question_id=source_question_id,
+                evidence=evidence,
+                failures_since_update=1,
+            )
+            progress.diagnostic_contexts[kp_id] = context
+        elif context.status == "complete":
+            context.failures_since_update += 1
+            if context.failures_since_update >= 3:
+                context.status = "pending"
+                context.source_question_id = source_question_id or context.source_question_id
+                context.evidence = evidence or context.evidence
+        else:
+            context.failures_since_update += 1
+            context.source_question_id = source_question_id or context.source_question_id
+            context.evidence = evidence or context.evidence
+        context.updated_at = now
+        progress.updated_at = now
+        self.save(progress)
+        return context
+
+    def record_diagnostic(
+        self,
+        progress: LearningProgress,
+        kp_id: str,
+        *,
+        barrier_type: str,
+        prerequisite_gap: str = "",
+        learning_context: str = "",
+        self_attribution: str = "",
+        preferred_support: str = "",
+        evidence: str = "",
+    ) -> DiagnosticContext:
+        context = progress.diagnostic_contexts.get(kp_id) or DiagnosticContext(
+            knowledge_point_id=kp_id
+        )
+        context.status = "complete"
+        context.barrier_type = barrier_type
+        context.prerequisite_gap = prerequisite_gap
+        context.learning_context = learning_context
+        context.self_attribution = self_attribution
+        context.preferred_support = preferred_support
+        context.evidence = evidence or context.evidence
+        context.failures_since_update = 0
+        context.updated_at = time.time()
+        progress.diagnostic_contexts[kp_id] = context
+
+        # Attach the learner's attribution to the latest matching error so the
+        # existing error-review surface benefits from the richer diagnosis.
+        if self_attribution:
+            for record in reversed(progress.error_records):
+                if record.knowledge_point_id == kp_id and record.status != "graduated":
+                    record.self_attribution = self_attribution
+                    break
+        progress.updated_at = context.updated_at
+        self.save(progress)
+        return context
 
     def list_progress(self) -> dict:
         """Return summary of all book progress with per-book error info."""
