@@ -68,6 +68,29 @@ def test_manifest_excludes_always_and_marks_unavailable(tmp_path: Path) -> None:
     assert "unavailable" in manifest
 
 
+def test_teaching_strategy_is_marked_and_must_be_consulted(tmp_path: Path) -> None:
+    root = tmp_path / "s"
+    _write_skill(
+        root,
+        "gaokao-vieta",
+        (
+            "name: gaokao-vieta\n"
+            "description: Use Vieta to handle chord lengths in Gaokao conics\n"
+            "tags: [teaching-strategy, math]"
+        ),
+        body="Use only when the line has two real intersections.",
+    )
+    svc = SkillService(root=root, builtin_root=None)
+
+    entry = svc.summary_entries()[0]
+    manifest = render_skills_manifest([entry])
+
+    assert entry.tags == ["teaching-strategy", "math"]
+    assert "[teacher/exam strategy]" in manifest
+    assert "MUST read that skill before answering" in manifest
+    assert "Apply it only inside its stated scope" in manifest
+
+
 def test_load_always_for_context(tmp_path: Path) -> None:
     root = tmp_path / "s"
     _write_skill(root, "rules", "name: rules\ndescription: d\nalways: true", body="Always do X.")

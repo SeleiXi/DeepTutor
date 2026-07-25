@@ -40,6 +40,7 @@ type DashKey =
   | "notebooks"
   | "question_bank"
   | "personas"
+  | "teaching_strategies"
   | "skills"
   | "mcp"
   | "cli_apps"
@@ -138,6 +139,22 @@ const GROUPS: DashboardGroup[] = [
         unit: { zh: "个预设", en: "personas" },
         tile: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
         load: async () => (await listPersonas()).length,
+      },
+      {
+        key: "teaching_strategies",
+        href: "/space/skills?tag=teaching-strategy",
+        icon: GraduationCap,
+        title: { zh: "教师 / 应试技巧", en: "Teacher & Exam Strategies" },
+        blurb: {
+          zh: "沉淀老师的独门方法，按科目、题型与考试情境调用。",
+          en: "Capture teacher-sourced methods and use them in the right exam context.",
+        },
+        unit: { zh: "条策略", en: "strategies" },
+        tile: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+        load: async () =>
+          (await listSkills()).filter((skill) =>
+            skill.tags?.includes("teaching-strategy"),
+          ).length,
       },
       {
         key: "skills",

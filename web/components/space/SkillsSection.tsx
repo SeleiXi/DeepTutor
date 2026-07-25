@@ -73,7 +73,7 @@ function stripFrontmatter(md: string): string {
 }
 
 export default function SkillsSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [tagVocab, setTagVocab] = useState<string[]>([]);
@@ -115,6 +115,10 @@ export default function SkillsSection() {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    const requestedTag = new URLSearchParams(window.location.search).get("tag");
+    if (requestedTag) setFilterTag(normalizeTag(requestedTag));
+  }, []);
 
   const filteredSkills = useMemo(() => {
     if (filterTag === "all") return skills;
@@ -155,6 +159,91 @@ export default function SkillsSection() {
     });
     setEditorTagDraft("");
   }, []);
+
+  const openTeachingStrategy = useCallback(() => {
+    const zh = i18n.language?.toLowerCase().startsWith("zh");
+    setEditor({
+      mode: "create",
+      originalName: null,
+      name: "",
+      description: zh
+        ? "请填写：适用于【学科/考试/题型】、在【触发条件】下使用的老师技巧。"
+        : "Fill in: a teacher-sourced technique for [subject/exam/question type], used when [trigger].",
+      content: zh
+        ? `# 教师 / 应试技巧
+
+## 适用范围
+
+- 学科与知识点：
+- 考试 / 课程 / 年级：
+- 题型：
+
+## 触发条件
+
+看到哪些结构、关键词或已知条件时，应考虑这个技巧？
+
+## 操作步骤
+
+1.
+2.
+3.
+
+## 为什么有效
+
+写明原理，避免只记口诀。
+
+## 例题
+
+给出一道典型题，并完整展示如何使用。
+
+## 不适用与易错边界
+
+列出不能使用的条件、常见误用，以及何时应退回通用方法。
+
+## 来源
+
+老师 / 课程 / 讲义名称与日期（如已知）。
+`
+        : `# Teacher / Exam Technique
+
+## Applicability
+
+- Subject and concept:
+- Exam / course / grade:
+- Question type:
+
+## Triggers
+
+Which structures, keywords, or given conditions should activate this technique?
+
+## Procedure
+
+1.
+2.
+3.
+
+## Why it works
+
+Explain the principle so this is more than a memorized shortcut.
+
+## Worked example
+
+Give one representative problem and show the complete application.
+
+## Boundaries and common misuses
+
+List conditions where the technique is invalid, common mistakes, and when to fall back to the general method.
+
+## Source
+
+Teacher / course / handout and date, when known.
+`,
+      tags: ["teaching-strategy"],
+      saving: false,
+      error: null,
+    });
+    setEditorTagDraft("");
+  }, [i18n.language]);
 
   const openEdit = useCallback(async (name: string) => {
     setEditor({
@@ -406,6 +495,13 @@ export default function SkillsSection() {
         }
         action={
           <div className="flex items-center gap-2">
+            <button
+              onClick={openTeachingStrategy}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--primary)] shadow-sm transition-colors hover:bg-[var(--primary)]/10"
+            >
+              <Sparkles size={13} strokeWidth={1.9} />
+              {t("New teaching strategy")}
+            </button>
             <button
               onClick={() => setImportOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--foreground)] shadow-sm transition-colors hover:bg-[var(--muted)]/50"

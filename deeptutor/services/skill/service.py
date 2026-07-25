@@ -63,7 +63,7 @@ from deeptutor.services.path_service import get_path_service
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 _TAG_RE = re.compile(r"^[a-z0-9][a-z0-9\- _]{0,31}$")
-_DEFAULT_TAGS: tuple[str, ...] = ("style", "tool")
+_DEFAULT_TAGS: tuple[str, ...] = ("style", "tool", "teaching-strategy")
 _TAGS_FILE = ".tags.json"
 
 # Builtin skills shipped inside the package. Partners run on the chat agent
@@ -147,6 +147,7 @@ class SkillSummaryEntry:
     available: bool = True
     missing: list[str] = field(default_factory=list)
     always: bool = False
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -502,6 +503,7 @@ class SkillService:
                     available=available,
                     missing=missing,
                     always=bool(meta.get("always")),
+                    tags=list(info.tags),
                 )
             )
         return entries
@@ -999,6 +1001,7 @@ def render_skills_manifest(entries: list[SkillSummaryEntry]) -> str:
     """
     seen: set[str] = set()
     lines: list[str] = []
+    has_teaching_strategies = False
     for entry in entries:
         if entry.always or entry.name in seen:
             continue
@@ -1007,15 +1010,33 @@ def render_skills_manifest(entries: list[SkillSummaryEntry]) -> str:
         if not entry.available:
             suffix = f" (unavailable: {', '.join(entry.missing)})"
         description = entry.description or entry.name
-        lines.append(f"- **{entry.name}** — {description}{suffix}")
+        strategy = "teaching-strategy" in entry.tags
+        has_teaching_strategies = has_teaching_strategies or (
+            strategy and entry.available
+        )
+        label = " [teacher/exam strategy]" if strategy else ""
+        lines.append(f"- **{entry.name}**{label} — {description}{suffix}")
     if not lines:
         return ""
+    strategy_rule = ""
+    if has_teaching_strategies:
+        strategy_rule = (
+            "\n\nTeacher/exam strategies contain source-specific classroom "
+            "techniques. For a teaching or problem-solving request, if the "
+            "subject, exam, question type, or trigger in one of these entries "
+            "could match, you MUST read that skill before answering. Apply it "
+            "only inside its stated scope, preserve its caveats, and prefer it "
+            "over a generic solution method when it is applicable."
+        )
     return (
         "## Skills\n"
         "Specialised playbooks available on demand. When a task matches a "
         "skill's description, call `read_skill` with its name BEFORE "
         "attempting the task, then follow the returned instructions. Skills "
-        "marked unavailable cannot be used until their requirements are met.\n\n" + "\n".join(lines)
+        "marked unavailable cannot be used until their requirements are met."
+        + strategy_rule
+        + "\n\n"
+        + "\n".join(lines)
     )
 
 
