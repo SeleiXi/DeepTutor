@@ -213,10 +213,21 @@ class RunManager:
 
         checkpoint = run.undo_stack.pop()
         path = Path(checkpoint.path)
+        from deeptutor.services.memory import evidence
+        from deeptutor.services.memory.document import Document, parse
+
+        before = (
+            parse(path.read_text(encoding="utf-8"))
+            if path.exists()
+            else Document(title="")
+        )
         if checkpoint.existed:
             await asyncio.to_thread(_atomic_write, path, checkpoint.previous_content)
+            after = parse(checkpoint.previous_content)
         else:
             await asyncio.to_thread(_remove_if_exists, path)
+            after = Document(title="")
+        evidence.reconcile(path, before, after, action="undo")
 
         return await self._emit(
             run,

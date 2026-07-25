@@ -26,6 +26,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { apiFetch, apiUrl } from "@/lib/api";
+import MemoryEvidencePanel from "@/components/memory/MemoryEvidencePanel";
 import MemoryRunPanel from "@/components/memory/MemoryRunPanel";
 
 const MarkdownRenderer = dynamic(
@@ -202,6 +203,7 @@ export default function MemoryWorkbench({
   const [editorValue, setEditorValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [evidenceRefresh, setEvidenceRefresh] = useState(0);
   // Focus is one-shot — once we've scrolled-to + flashed the anchor we
   // don't want subsequent content reloads (e.g. after a Run) to keep
   // re-scrolling. ``initialFocus`` seeds it; the effect clears it.
@@ -319,6 +321,7 @@ export default function MemoryWorkbench({
       setContent(editorValue);
       setEditing(false);
       setToast(t("Saved"));
+      setEvidenceRefresh((value) => value + 1);
       void loadLines();
     } catch (e) {
       setToast(e instanceof Error ? e.message : t("Save failed"));
@@ -336,6 +339,7 @@ export default function MemoryWorkbench({
     void loadDoc();
     void loadLines();
     void loadOverview();
+    setEvidenceRefresh((value) => value + 1);
   }, [loadDoc, loadLines, loadOverview]);
 
   return (
@@ -459,7 +463,13 @@ export default function MemoryWorkbench({
         </section>
 
         {/* ── Right: LLM work area ── */}
-        <aside className="min-h-0">
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <MemoryEvidencePanel
+            layer={layer}
+            docKey={docKey}
+            refreshToken={`${docKey}:${evidenceRefresh}`}
+            onChanged={handleRunComplete}
+          />
           <MemoryRunPanel
             layer={layer}
             docKey={docKey}

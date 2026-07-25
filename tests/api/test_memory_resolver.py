@@ -80,3 +80,49 @@ def test_resolve_entry_first_hit_wins(client: TestClient, tmp_path: Path) -> Non
     res = client.get(f"/api/v1/memory/resolve_entry/{entry_id}")
     assert res.status_code == 200
     assert res.json()["key"] == "chat"
+
+
+def test_evidence_endpoints_confirm_dispute_and_correct(
+    client: TestClient, tmp_path: Path
+) -> None:
+    entry_id = "m_01HZK1ABCDEFGHJKMNPQRSTVWX"
+    _seed_l2(tmp_path, "chat", entry_id)
+
+    initial = client.get("/api/v1/memory/doc/L2/chat/evidence")
+    assert initial.status_code == 200
+    assert initial.json()["summary"]["active"] == 1
+
+    disputed = client.post(
+        f"/api/v1/memory/doc/L2/chat/entry/{entry_id}/evidence",
+        json={"action": "dispute", "reason": "not true"},
+    )
+    assert disputed.status_code == 200
+    assert disputed.json()["entry"]["state"] == "disputed"
+
+    corrected = client.post(
+        f"/api/v1/memory/doc/L2/chat/entry/{entry_id}/evidence",
+        json={"action": "correct", "text": "corrected fact"},
+    )
+    assert corrected.status_code == 200
+    assert corrected.json()["entry"]["state"] == "active"
+    assert corrected.json()["entry"]["revision"] == 2
+
+    doc = client.get("/api/v1/memory/doc/L2/chat").json()["content"]
+    assert "corrected fact" in doc
+    assert entry_id in doc
+
+
+def test_reset_removes_evidence_sidecar(client: TestClient, tmp_path: Path) -> None:
+    entry_id = "m_01HZK1ABCDEFGHJKMNPQRSTVWX"
+    _seed_l2(tmp_path, "chat", entry_id)
+    client.post(
+        f"/api/v1/memory/doc/L2/chat/entry/{entry_id}/evidence",
+        json={"action": "confirm"},
+    )
+    evidence_path = tmp_path / "L2" / "chat.evidence.json"
+    assert evidence_path.exists()
+
+    response = client.post("/api/v1/memory/doc/L2/chat/reset")
+    assert response.status_code == 200
+    assert response.json()["removed_evidence"] is True
+    assert not evidence_path.exists()

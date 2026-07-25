@@ -220,9 +220,13 @@ def load_doc(path: Path, *, default_title: str) -> Document:
 
 
 async def write_doc_atomic(path: Path, doc: Document) -> None:
+    from deeptutor.services.memory import evidence
+
+    before = load_doc(path, default_title=doc.title)
     path.parent.mkdir(parents=True, exist_ok=True)
     text = serialize(doc)
     await asyncio.to_thread(_atomic_write, path, text)
+    evidence.reconcile(path, before, doc, action="consolidator_write")
 
 
 async def write_doc_checkpoint(
@@ -239,7 +243,12 @@ async def write_doc_checkpoint(
     """Write a doc now and register one run-scoped undo checkpoint."""
     existed = path.exists()
     previous = path.read_text(encoding="utf-8") if existed else ""
-    await write_doc_atomic(path, doc)
+    from deeptutor.services.memory import evidence
+
+    before = load_doc(path, default_title=doc.title)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(_atomic_write, path, serialize(doc))
+    evidence.reconcile(path, before, doc, action=action)
     from deeptutor.services.memory.consolidator.runs import push_undo_checkpoint
 
     undo_depth = push_undo_checkpoint(

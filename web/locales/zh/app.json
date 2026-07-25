@@ -2908,5 +2908,21 @@
   "Running {{app}}": "运行 {{app}}",
   "Product names and logos are trademarks of their respective owners, shown for identification only.": "产品名称与标识为其各自所有者的商标，此处仅用于标识。",
   "Needs authorization": "待授权",
-  "Reauthorize": "重新授权"
+  "Reauthorize": "重新授权",
+  "Memory evidence": "记忆证据",
+  "Only active evidence is used to personalize answers.": "只有有效且未过期的证据会用于个性化回答。",
+  "{{count}} to review": "{{count}} 条待复核",
+  "Up to date": "已是最新",
+  "No evidence-backed entries yet.": "暂无有证据支撑的记忆条目。",
+  "active": "有效",
+  "stale": "已过期",
+  "disputed": "有争议",
+  "superseded": "已被替代",
+  "Confirm": "确认有效",
+  "Reactivate": "重新启用",
+  "Inaccurate": "不准确",
+  "Correct": "纠正",
+  "Save correction": "保存纠正",
+  "Could not load memory evidence": "无法加载记忆证据",
+  "Could not update memory evidence": "无法更新记忆证据"
 }

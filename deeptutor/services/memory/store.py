@@ -16,7 +16,7 @@ from pathlib import Path
 import shutil
 from typing import Literal
 
-from deeptutor.services.memory import consolidator, paths, trace
+from deeptutor.services.memory import consolidator, evidence, paths, trace
 from deeptutor.services.memory.consolidator import ConsolidateResult, OnEvent
 from deeptutor.services.memory.document import Document, parse, serialize
 from deeptutor.services.memory.ops import AddOp, ApplyReport, EditOp, OpResult
@@ -94,9 +94,17 @@ class MemoryStore:
         """Concatenate all four L3 docs for the ``read_memory`` tool."""
         parts: list[str] = []
         for slot in paths.L3_SLOTS:
+            path = paths.l3_file(slot)
             body = self.read_raw("L3", slot).strip()
             if body:
-                parts.append(body)
+                doc = parse(body)
+                if doc.all_entries():
+                    safe_doc = evidence.safe_document(
+                        path, doc, layer="L3", key=slot
+                    )
+                    body = serialize(safe_doc).strip() if safe_doc.all_entries() else ""
+                if body:
+                    parts.append(body)
         if not parts:
             return _NO_MEMORY
         return "\n\n---\n\n".join(parts) + "\n"
@@ -107,17 +115,28 @@ class MemoryStore:
         """Direct user-driven save from the workbench editor."""
         path = self._path(layer, key)
         async with self._lock_for(path):
+            before = self.read_doc(layer, key)
             await asyncio.to_thread(_atomic_write, path, md)
+            evidence.reconcile(path, before, parse(md), action="manual_overwrite")
 
     async def delete_entry(self, layer: Layer, key: str, entry_id: str) -> bool:
         path = self._path(layer, key)
         if not path.exists():
             return False
         async with self._lock_for(path):
-            doc = parse(path.read_text(encoding="utf-8"))
+            raw = path.read_text(encoding="utf-8")
+            before = parse(raw)
+            doc = parse(raw)
             if not doc.remove(entry_id):
                 return False
             await asyncio.to_thread(_atomic_write, path, serialize(doc))
+            evidence.reconcile(
+                path,
+                before,
+                doc,
+                action="manual_delete",
+                removal_reasons={entry_id: "superseded"},
+            )
             return True
 
     # ── L2 / L3 write (consolidator paths) ────────────────────────────────
@@ -185,10 +204,12 @@ class MemoryStore:
                 if path.exists()
                 else Document(title=default_title)
             )
+            before = parse(serialize(doc))
             report = ops_apply(doc, ops)
             if report.accepted and ops:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 await asyncio.to_thread(_atomic_write, path, serialize(doc))
+                evidence.reconcile(path, before, doc, action="apply_ops")
             return report
 
     async def write_preference(
@@ -210,6 +231,7 @@ class MemoryStore:
                 if path.exists()
                 else Document(title=_default_title("L3", "preferences"))
             )
+            before = parse(serialize(doc))
             section = "Preferences"
             if op == "add":
                 # Idempotent add: preferences.md is never auto-consolidated
@@ -251,10 +273,56 @@ class MemoryStore:
                 )
             if report.accepted:
                 await asyncio.to_thread(_atomic_write, path, serialize(doc))
+                evidence.reconcile(path, before, doc, action=f"preference_{op}")
             if reason:
                 # Surface the reason in logs for workbench observability.
                 logger.info("write_memory %s id=%s reason=%s", op, target_id or "new", reason)
             return report
+
+    def evidence_report(self, layer: Layer, key: str) -> dict:
+        path = self._path(layer, key)
+        return evidence.report(path, self.read_doc(layer, key), layer=layer, key=key)
+
+    async def update_entry_evidence(
+        self,
+        layer: Layer,
+        key: str,
+        entry_id: str,
+        *,
+        action: Literal["confirm", "dispute", "reactivate", "supersede", "correct"],
+        reason: str = "",
+        text: str = "",
+        refs: list[str] | None = None,
+    ) -> dict:
+        path = self._path(layer, key)
+        if not path.exists():
+            raise KeyError(entry_id)
+        async with self._lock_for(path):
+            raw = path.read_text(encoding="utf-8")
+            before = parse(raw)
+            doc = parse(raw)
+            entry = doc.find(entry_id)
+            if entry is None:
+                raise KeyError(entry_id)
+            if action == "correct":
+                report = ops_apply(
+                    doc,
+                    [
+                        EditOp(
+                            target_id=entry_id,
+                            new_text=text,
+                            new_refs=list(refs) if refs is not None else list(entry.refs),
+                        )
+                    ],
+                )
+                if not report.accepted:
+                    raise ValueError(report.reason)
+                await asyncio.to_thread(_atomic_write, path, serialize(doc))
+                evidence.reconcile(path, before, doc, action="user_correction")
+                entry = doc.find(entry_id)
+                assert entry is not None
+                return evidence.transition(path, entry, "confirm", reason=reason)
+            return evidence.transition(path, entry, action, reason=reason)
 
     # ── Workbench overview ────────────────────────────────────────────────
 

@@ -38,7 +38,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from deeptutor.services.memory import (
     L3_SLOTS,
@@ -148,6 +148,13 @@ class DocWriteRequest(BaseModel):
     content: str
 
 
+class EvidenceActionRequest(BaseModel):
+    action: Literal["confirm", "dispute", "reactivate", "supersede", "correct"]
+    reason: str = Field(default="", max_length=500)
+    text: str = Field(default="", max_length=240)
+    refs: list[str] | None = None
+
+
 @router.put("/doc/{layer}/{key}")
 async def put_doc(layer: str, key: str, payload: DocWriteRequest):
     lyr = _validate_layer(layer)
@@ -164,6 +171,47 @@ async def delete_entry(layer: str, key: str, entry_id: str):
     if not ok:
         raise HTTPException(status_code=404, detail="entry not found")
     return {"layer": lyr, "key": key, "deleted": entry_id}
+
+
+@router.get("/doc/{layer}/{key}/evidence")
+async def get_doc_evidence(layer: str, key: str):
+    lyr = _validate_layer(layer)
+    _validate_doc_key(lyr, key)
+    return {
+        "layer": lyr,
+        "key": key,
+        **get_memory_store().evidence_report(lyr, key),
+    }
+
+
+@router.post("/doc/{layer}/{key}/entry/{entry_id}/evidence")
+async def update_entry_evidence(
+    layer: str,
+    key: str,
+    entry_id: str,
+    payload: EvidenceActionRequest,
+):
+    lyr = _validate_layer(layer)
+    _validate_doc_key(lyr, key)
+    if not _ENTRY_ID_RE.match(entry_id):
+        raise HTTPException(status_code=400, detail="not a valid entry id")
+    if payload.action == "correct" and not payload.text.strip():
+        raise HTTPException(status_code=400, detail="correct requires non-empty text")
+    try:
+        record = await get_memory_store().update_entry_evidence(
+            lyr,
+            key,
+            entry_id,
+            action=payload.action,
+            reason=payload.reason,
+            text=payload.text.strip(),
+            refs=payload.refs,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="entry not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"layer": lyr, "key": key, "entry": record}
 
 
 @router.post("/doc/{layer}/{key}/reset")
@@ -189,6 +237,7 @@ async def reset_doc(layer: str, key: str):
             detail="cancel the active run before resetting this doc",
         )
 
+    from deeptutor.services.memory import evidence
     from deeptutor.services.memory.consolidator import meta as meta_mod
 
     doc_path = paths.l2_file(key) if lyr == "L2" else paths.l3_file(key)  # type: ignore[arg-type]
@@ -200,6 +249,7 @@ async def reset_doc(layer: str, key: str):
 
     removed_doc = False
     removed_meta = False
+    removed_evidence = False
     try:
         if doc_path.exists():
             doc_path.unlink()
@@ -207,6 +257,10 @@ async def reset_doc(layer: str, key: str):
         if meta_path.exists():
             meta_path.unlink()
             removed_meta = True
+        evidence_path = evidence.ledger_path(doc_path)
+        if evidence_path.exists():
+            evidence_path.unlink()
+            removed_evidence = True
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"reset failed: {exc}") from exc
 
@@ -216,6 +270,7 @@ async def reset_doc(layer: str, key: str):
         "reset": True,
         "removed_doc": removed_doc,
         "removed_meta": removed_meta,
+        "removed_evidence": removed_evidence,
     }
 
 

@@ -2908,5 +2908,21 @@
   "Running {{app}}": "Running {{app}}",
   "Product names and logos are trademarks of their respective owners, shown for identification only.": "Product names and logos are trademarks of their respective owners, shown for identification only.",
   "Needs authorization": "Needs authorization",
-  "Reauthorize": "Reauthorize"
+  "Reauthorize": "Reauthorize",
+  "Memory evidence": "Memory evidence",
+  "Only active evidence is used to personalize answers.": "Only active evidence is used to personalize answers.",
+  "{{count}} to review": "{{count}} to review",
+  "Up to date": "Up to date",
+  "No evidence-backed entries yet.": "No evidence-backed entries yet.",
+  "active": "active",
+  "stale": "stale",
+  "disputed": "disputed",
+  "superseded": "superseded",
+  "Confirm": "Confirm",
+  "Reactivate": "Reactivate",
+  "Inaccurate": "Inaccurate",
+  "Correct": "Correct",
+  "Save correction": "Save correction",
+  "Could not load memory evidence": "Could not load memory evidence",
+  "Could not update memory evidence": "Could not update memory evidence"
 }
