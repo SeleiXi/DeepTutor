@@ -335,6 +335,7 @@ app.mount(
 # Some router modules load YAML settings at import time.
 from deeptutor.api.routers import (
     agent_config,
+    answer_feedback,
     attachments,
     auth,
     book,
@@ -390,6 +391,12 @@ app.include_router(
 )
 
 app.include_router(chat.router, prefix="/api/v1", tags=["chat"], dependencies=_auth)
+app.include_router(
+    answer_feedback.router,
+    prefix="/api/v1/answer-feedback",
+    tags=["answer-feedback"],
+    dependencies=_auth,
+)
 app.include_router(
     question.router, prefix="/api/v1/question", tags=["question"], dependencies=_auth
 )

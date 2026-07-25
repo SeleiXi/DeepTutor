@@ -2908,5 +2908,11 @@
   "Running {{app}}": "Running {{app}}",
   "Product names and logos are trademarks of their respective owners, shown for identification only.": "Product names and logos are trademarks of their respective owners, shown for identification only.",
   "Needs authorization": "Needs authorization",
-  "Reauthorize": "Reauthorize"
+  "Reauthorize": "Reauthorize",
+  "Was this answer effective?": "Was this answer effective?",
+  "Helpful": "Helpful",
+  "Not helpful": "Not helpful",
+  "I learned it": "I learned it",
+  "Feedback saved": "Feedback saved",
+  "Could not save feedback": "Could not save feedback"
 }

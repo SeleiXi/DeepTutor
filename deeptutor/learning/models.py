@@ -182,6 +182,18 @@ class PendingQuestion(BaseModel):
     created_at: float = Field(default_factory=time.time)
 
 
+class AnswerFeedbackEvidence(BaseModel):
+    """Learner-provided evidence about whether a tutor answer was effective."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    message_id: int
+    verdict: Literal["helpful", "not_helpful", "learned"]
+    reward: float
+    knowledge_point_id: str = ""
+    created_at: float = Field(default_factory=time.time)
+
+
 class LearningProgress(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -208,6 +220,11 @@ class LearningProgress(BaseModel):
     feynman_explanations: dict[str, str] = Field(default_factory=dict)
     stage_failure_counts: dict[str, int] = Field(default_factory=dict)
     stage_failure_notes: dict[str, str] = Field(default_factory=dict)
+    # Self-reports are useful evidence but do not satisfy a mastery gate by
+    # themselves. A later quiz / Feynman check remains authoritative.
+    self_reported_mastery: dict[str, bool] = Field(default_factory=dict)
+    answer_feedback: list[AnswerFeedbackEvidence] = Field(default_factory=list)
+    feedback_reward_total: float = 0.0
     version: int = 0
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
@@ -226,5 +243,6 @@ __all__ = [
     "RepetitionState",
     "ReviewTask",
     "PendingQuestion",
+    "AnswerFeedbackEvidence",
     "LearningProgress",
 ]

@@ -2908,5 +2908,11 @@
   "Running {{app}}": "运行 {{app}}",
   "Product names and logos are trademarks of their respective owners, shown for identification only.": "产品名称与标识为其各自所有者的商标，此处仅用于标识。",
   "Needs authorization": "待授权",
-  "Reauthorize": "重新授权"
+  "Reauthorize": "重新授权",
+  "Was this answer effective?": "这个回答有效吗？",
+  "Helpful": "有帮助",
+  "Not helpful": "没帮助",
+  "I learned it": "我学会了",
+  "Feedback saved": "反馈已保存",
+  "Could not save feedback": "反馈保存失败"
 }

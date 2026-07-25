@@ -8,6 +8,7 @@ import uuid
 from deeptutor.learning.grading import classify_error, grade_answer
 from deeptutor.learning.mastery import compute_mastery
 from deeptutor.learning.models import (
+    AnswerFeedbackEvidence,
     ErrorRecord,
     LearningModule,
     LearningProgress,
@@ -61,6 +62,14 @@ class LearningService:
         progress.feynman_explanations = {
             k: v for k, v in progress.feynman_explanations.items() if k in new_kp_ids
         }
+        progress.self_reported_mastery = {
+            k: v for k, v in progress.self_reported_mastery.items() if k in new_kp_ids
+        }
+        progress.answer_feedback = [
+            item
+            for item in progress.answer_feedback
+            if not item.knowledge_point_id or item.knowledge_point_id in new_kp_ids
+        ]
         progress.review_queue = [
             t for t in progress.review_queue if t.knowledge_point_id in new_kp_ids
         ]
@@ -243,6 +252,62 @@ class LearningService:
             progress.feynman_explanations[kp_id] = evidence
         progress.updated_at = time.time()
         self.save(progress)
+
+    def record_answer_feedback(
+        self,
+        progress: LearningProgress,
+        *,
+        message_id: int,
+        verdict: str,
+        knowledge_point_id: str = "",
+    ) -> AnswerFeedbackEvidence:
+        """Fold explicit learner feedback into durable, conservative evidence.
+
+        A self-report never crosses the quantitative mastery threshold and
+        never sets the qualitative gate. It can lower stale confidence when
+        the learner says an explanation was ineffective.
+        """
+        rewards = {"helpful": 0.5, "not_helpful": -1.0, "learned": 1.0}
+        if verdict not in rewards:
+            raise ValueError(f"Unsupported feedback verdict: {verdict}")
+        evidence = AnswerFeedbackEvidence(
+            message_id=message_id,
+            verdict=verdict,
+            reward=rewards[verdict],
+            knowledge_point_id=knowledge_point_id,
+        )
+        previous = next(
+            (
+                item
+                for item in reversed(progress.answer_feedback)
+                if item.message_id == message_id
+            ),
+            None,
+        )
+        progress.answer_feedback.append(evidence)
+        progress.feedback_reward_total = round(
+            progress.feedback_reward_total
+            - (previous.reward if previous is not None else 0.0)
+            + evidence.reward,
+            6,
+        )
+        if knowledge_point_id and verdict == "learned":
+            progress.self_reported_mastery[knowledge_point_id] = True
+            progress.mastery_levels[knowledge_point_id] = max(
+                progress.mastery_levels.get(knowledge_point_id, 0.0),
+                0.6,
+            )
+        elif knowledge_point_id and verdict == "not_helpful":
+            progress.self_reported_mastery[knowledge_point_id] = False
+            progress.mastery_levels[knowledge_point_id] = min(
+                progress.mastery_levels.get(knowledge_point_id, 0.0),
+                0.4,
+            )
+            if knowledge_point_id in progress.qualitative_mastery:
+                progress.qualitative_mastery[knowledge_point_id] = False
+        progress.updated_at = time.time()
+        self.save(progress)
+        return evidence
 
     def list_progress(self) -> dict:
         """Return summary of all book progress with per-book error info."""

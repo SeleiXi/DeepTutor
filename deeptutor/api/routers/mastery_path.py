@@ -209,6 +209,9 @@ async def redo_progress(book_id: str):
     progress.feynman_explanations = {}
     progress.stage_failure_counts = {}
     progress.stage_failure_notes = {}
+    progress.self_reported_mastery = {}
+    progress.answer_feedback = []
+    progress.feedback_reward_total = 0.0
     progress.diagnostic = None
     progress.current_kp_index = 0
     progress.current_module_id = progress.modules[0].id if progress.modules else ""

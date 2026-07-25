@@ -61,6 +61,7 @@ import {
   extractAskUserPayload,
   extractMessageSegments,
 } from "./AskUserOptions";
+import AnswerFeedback from "./AnswerFeedback";
 import ContextReferenceTree, {
   type ContextTreeItem,
 } from "./ContextReferenceTree";
@@ -1389,6 +1390,11 @@ export const ChatMessageList = memo(function ChatMessageList({
             ? pairedUserMessage.id
             : null;
         const showDelete = deletableTurnUserId != null;
+        const feedbackBookId =
+          pairedUserMessage?.requestSnapshot?.bookReferences?.[0]?.book_id ??
+          "";
+        const showFeedback =
+          msgDone && msg.id != null && Boolean(sessionId);
 
         const costSummary = (() => {
           if (!msgDone) return null;
@@ -1465,8 +1471,8 @@ export const ChatMessageList = memo(function ChatMessageList({
                 </div>
               );
             })()}
-            {(showActions || costSummary || showDelete) && (
-              <div className="mt-3 flex items-center">
+            {(showActions || costSummary || showDelete || showFeedback) && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 {(showActions || showDelete) && (
                   <div className="flex items-center gap-1">
                     {showActions && (
@@ -1498,6 +1504,13 @@ export const ChatMessageList = memo(function ChatMessageList({
                     )}
                   </div>
                 )}
+                {showFeedback ? (
+                  <AnswerFeedback
+                    sessionId={sessionId as string}
+                    messageId={msg.id as number}
+                    bookId={feedbackBookId}
+                  />
+                ) : null}
                 {costSummary && (
                   <div className="ml-auto">
                     <CostFooter
