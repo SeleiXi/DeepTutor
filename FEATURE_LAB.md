@@ -1,6 +1,6 @@
 # DeepTutor Feature Lab
 
-Feature Lab runs the eight independent SeleiXi feature branches at the same time.
+Feature Lab runs the seven independent SeleiXi feature branches at the same time.
 Each variant gets its own detached Git worktree, runtime data, ports, Next.js
 cache, log, and recorded launcher process.
 
@@ -13,7 +13,7 @@ On Windows, double-click `feature-lab.cmd`, or run:
 ```
 
 That command fetches the branches from `origin`, prepares their worktrees,
-starts all eight variants in the background, waits for their backend and frontend
+starts all seven variants in the background, waits for their backend and frontend
 health checks, and prints every URL.
 
 Use the same entry point for lifecycle commands:
@@ -41,12 +41,11 @@ python scripts/feature_lab.py stop
 | `diagnostic-follow-up` | `feat/diagnostic-follow-up` | 8812 | [3812](http://localhost:3812) |
 | `memory-reconciliation` | `feat/memory-evidence-reconciliation` | 8813 | [3813](http://localhost:3813) |
 | `teacher-techniques` | `feat/teacher-exam-techniques` | 8814 | [3814](http://localhost:3814) |
-| `guided-question` | `feat/user-guided-question-mode` | 8815 | [3815](http://localhost:3815) |
+| `guided-question` | `feat/ask-questions-capability` | 8815 | [3815](http://localhost:3815) |
 | `chat-parent-fix` | `feat/fix-stale-chat-parent` | 8816 | [3816](http://localhost:3816) |
-| `workbuddy` | `feat/workbuddy-support` | 8817 | [3817](http://localhost:3817) |
 | `antigravity` | `feat/antigravity-support` | 8818 | [3818](http://localhost:3818) |
 
-Pass a variant key, the full branch name, or omit variants to target all eight.
+Pass a variant key, the full branch name, or omit variants to target all seven.
 
 ## Isolation and local configuration
 

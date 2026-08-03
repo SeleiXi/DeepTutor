@@ -80,13 +80,6 @@ FEATURES: tuple[Feature, ...] = (
         3816,
     ),
     Feature(
-        "workbuddy",
-        "feat/workbuddy-support",
-        "WorkBuddy AgentOS support",
-        8817,
-        3817,
-    ),
-    Feature(
         "antigravity",
         "feat/antigravity-support",
         "Google Antigravity support",
