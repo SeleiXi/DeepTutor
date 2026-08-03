@@ -148,6 +148,19 @@ def test_process_match_requires_both_script_and_runtime_home(feature_lab) -> Non
         assert not feature_lab.process_matches_state(123, state)
 
 
+def test_process_command_tolerates_slow_windows_cim(feature_lab) -> None:
+    with (
+        mock.patch.object(feature_lab.os, "name", "nt"),
+        mock.patch.object(feature_lab.shutil, "which", return_value="powershell.exe"),
+        mock.patch.object(
+            feature_lab.subprocess,
+            "run",
+            side_effect=feature_lab.subprocess.TimeoutExpired("powershell.exe", 30),
+        ),
+    ):
+        assert feature_lab.process_command(123) == ""
+
+
 def test_spawn_launcher_pins_pythonpath_and_records_state(feature_lab, tmp_path: Path) -> None:
     lab_root = tmp_path / "lab"
     feature = feature_lab.FEATURES[0]

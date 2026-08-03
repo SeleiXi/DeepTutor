@@ -386,15 +386,19 @@ def process_command(pid: int) -> str:
         expression = (
             f"(Get-CimInstance Win32_Process -Filter \"ProcessId = {pid}\").CommandLine"
         )
-        result = subprocess.run(
-            [powershell, "-NoProfile", "-NonInteractive", "-Command", expression],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=5,
-        )
+        try:
+            result = subprocess.run(
+                [powershell, "-NoProfile", "-NonInteractive", "-Command", expression],
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                # CIM startup can be slow on otherwise healthy Windows hosts.
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            return ""
         return result.stdout.strip()
 
     proc_path = Path("/proc") / str(pid) / "cmdline"
@@ -578,6 +582,7 @@ def start_variants(
         raise LabError(f"Required ports are already owned by other processes: {details}")
 
     waiting: list[Feature] = []
+    spawned_here: set[str] = set()
     for feature in features:
         if states[feature.key]["status"] in {"ready", "starting"}:
             print(f"[start] {feature.key}: already {states[feature.key]['status']}")
@@ -591,6 +596,7 @@ def start_variants(
             seed_settings=seed_settings,
         )
         _spawn_launcher(lab_root, feature, home)
+        spawned_here.add(feature.key)
         waiting.append(feature)
 
     deadline = time.monotonic() + timeout
@@ -607,7 +613,11 @@ def start_variants(
                 continue
             now = time.monotonic()
             last_identity_check = identity_checked_at.get(key, 0.0)
-            if launcher_pid is not None and now - last_identity_check >= 3:
+            if (
+                key not in spawned_here
+                and launcher_pid is not None
+                and now - last_identity_check >= 3
+            ):
                 if not process_matches_state(launcher_pid, state):
                     failed[key] = "launcher process identity was lost"
                     pending.pop(key)
