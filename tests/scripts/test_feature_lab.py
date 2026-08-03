@@ -29,7 +29,7 @@ def feature_lab():
 def test_manifest_has_unique_keys_branches_and_ports(feature_lab) -> None:
     features = feature_lab.FEATURES
 
-    assert len(features) == 6
+    assert len(features) == 8
     assert len({feature.key for feature in features}) == len(features)
     assert len({feature.branch for feature in features}) == len(features)
     assert len({feature.backend_port for feature in features}) == len(features)

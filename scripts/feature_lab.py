@@ -79,6 +79,20 @@ FEATURES: tuple[Feature, ...] = (
         8816,
         3816,
     ),
+    Feature(
+        "workbuddy",
+        "feat/workbuddy-support",
+        "WorkBuddy AgentOS support",
+        8817,
+        3817,
+    ),
+    Feature(
+        "antigravity",
+        "feat/antigravity-support",
+        "Google Antigravity support",
+        8818,
+        3818,
+    ),
 )
 
 FEATURE_BY_KEY = {feature.key: feature for feature in FEATURES}
