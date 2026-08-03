@@ -67,8 +67,8 @@ FEATURES: tuple[Feature, ...] = (
     ),
     Feature(
         "guided-question",
-        "feat/user-guided-question-mode",
-        "User-guided question mode",
+        "feat/ask-questions-capability",
+        "Ask Questions capability",
         8815,
         3815,
     ),

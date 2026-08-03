@@ -36,6 +36,10 @@ def test_manifest_has_unique_keys_branches_and_ports(feature_lab) -> None:
     assert len({feature.frontend_port for feature in features}) == len(features)
     assert all(feature.branch.startswith("feat/") for feature in features)
 
+    guided = next(feature for feature in features if feature.key == "guided-question")
+    assert guided.branch == "feat/ask-questions-capability"
+    assert guided.label == "Ask Questions capability"
+
 
 def test_select_features_accepts_keys_branches_and_all(feature_lab) -> None:
     first, second = feature_lab.FEATURES[:2]
