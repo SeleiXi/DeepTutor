@@ -338,6 +338,31 @@ def test_llm_context_window_passes_through_from_catalog() -> None:
     assert resolved.context_window == 128000
 
 
+def test_llm_antigravity_resolves_without_endpoint() -> None:
+    catalog = _build_catalog(
+        llm_profile={
+            "id": "llm-p",
+            "name": "Google Antigravity",
+            "binding": "antigravity",
+            "base_url": "",
+            "api_key": "",
+            "api_version": "",
+            "extra_headers": {},
+            "models": [
+                {
+                    "id": "llm-m",
+                    "name": "Antigravity Default",
+                    "model": "antigravity/default",
+                }
+            ],
+        }
+    )
+    resolved = resolve_llm_runtime_config(catalog=catalog)
+    assert resolved.provider_name == "antigravity"
+    assert resolved.provider_mode == "standard"
+    assert resolved.effective_url is None
+
+
 def test_llm_selection_overrides_active_model_without_mutating_catalog() -> None:
     profile_a = {
         "id": "p-a",

@@ -20,6 +20,13 @@ Usage:
 # Provider capabilities configuration
 # Keys are binding names (lowercase), values are capability dictionaries
 PROVIDER_CAPABILITIES: dict[str, dict[str, object]] = {
+    "antigravity": {
+        "supports_response_format": False,
+        "supports_streaming": True,
+        "supports_tools": False,
+        "supports_vision": False,
+        "system_in_messages": True,
+    },
     # OpenAI and OpenAI-compatible providers
     "openai": {
         "supports_response_format": True,

@@ -42,6 +42,7 @@ dependencies = [
     "dashscope>=1.14.0",
     "perplexityai>=0.1.0",
     "oauth-cli-kit>=0.1.1",
+    "google-antigravity>=0.1.9,<0.2.0",
     "llama-index>=0.14.12",
     "llama-index-retrievers-bm25>=0.7.1,<0.8.0",
     # FAISS vector store: vectorized ANN retrieval that replaces SimpleVectorStore's
@@ -83,6 +84,7 @@ cli = [
     "dashscope>=1.14.0",
     "perplexityai>=0.1.0",
     "oauth-cli-kit>=0.1.1",
+    "google-antigravity>=0.1.9,<0.2.0",
     # RAG (LlamaIndex)
     "llama-index>=0.14.12",
     "llama-index-retrievers-bm25>=0.7.1,<0.8.0",
@@ -149,6 +151,10 @@ partners = [
     # weixin QR-code login
     "qrcode>=7.4.0,<9.0.0",
 ]
+
+# Google Antigravity SDK provider. Also included in full/CLI installs above;
+# retained as a named source-install extra for targeted environments.
+antigravity = ["google-antigravity>=0.1.9,<0.2.0"]
 
 # Optional document-parsing engines for the shared parse layer
 # (deeptutor/services/parsing). MinerU is an external CLI / hosted API and is
@@ -232,6 +238,7 @@ all = [
     "deeptutor[matrix]",
     "deeptutor[math-animator]",
     "deeptutor[dev]",
+    "deeptutor[antigravity]",
 ]
 
 [tool.setuptools]

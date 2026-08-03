@@ -174,6 +174,30 @@ def test_build_openai_client_routes_github_copilot_backend_through_adapter(monke
     assert captured["default_model"] == "github-copilot/gpt-4.1"
 
 
+def test_build_openai_client_routes_antigravity_backend_through_adapter(monkeypatch) -> None:
+    captured = {}
+
+    class FakeProvider:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "deeptutor.services.llm.provider_core.AntigravityProvider",
+        FakeProvider,
+    )
+    client = build_openai_client(
+        LLMClientConfig(
+            binding="antigravity",
+            model="antigravity/default",
+            api_key="google-key",
+            base_url=None,
+        )
+    )
+    assert isinstance(client, _ProviderOpenAIAdapter)
+    assert captured["api_key"] == "google-key"
+    assert captured["default_model"] == "antigravity/default"
+
+
 def test_anthropic_backend_can_use_native_tool_calling() -> None:
     assert can_use_native_tool_calling(binding="custom_anthropic", model="claude-test") is True
     assert can_use_native_tool_calling(binding="minimax_anthropic", model="MiniMax-M3") is True

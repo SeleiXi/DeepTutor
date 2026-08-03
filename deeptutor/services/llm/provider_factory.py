@@ -48,12 +48,21 @@ def _build_runtime_provider(llm_config: LLMConfig) -> LLMProvider:
     spec = find_by_name(provider_name)
     backend = spec.backend if spec else "openai_compat"
 
-    if backend == "openai_codex":
+    if backend == "antigravity":
+        from deeptutor.services.llm.provider_core.antigravity_provider import (
+            AntigravityProvider,
+        )
+
+        provider: LLMProvider = AntigravityProvider(
+            api_key=llm_config.api_key or None,
+            default_model=llm_config.model,
+        )
+    elif backend == "openai_codex":
         from deeptutor.services.llm.provider_core.openai_codex_provider import (
             OpenAICodexProvider,
         )
 
-        provider: LLMProvider = OpenAICodexProvider(default_model=llm_config.model)
+        provider = OpenAICodexProvider(default_model=llm_config.model)
     elif backend == "github_copilot":
         from deeptutor.services.llm.provider_core.github_copilot_provider import (
             GitHubCopilotProvider,

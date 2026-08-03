@@ -165,6 +165,9 @@ export type ProviderOption = {
   default_model?: string;
   default_voice?: string;
   auth_mode?: "api_key" | "oauth";
+  requires_key?: boolean;
+  login_supported?: boolean;
+  login_label?: string;
 };
 
 export type SystemStatus = {

@@ -9,6 +9,7 @@ from .base import GenerationSettings, LLMProvider, LLMResponse, ToolCallRequest
 
 if TYPE_CHECKING:
     from .anthropic_provider import AnthropicProvider
+    from .antigravity_provider import AntigravityProvider
     from .azure_openai_provider import AzureOpenAIProvider
     from .github_copilot_provider import GitHubCopilotProvider
     from .openai_codex_provider import OpenAICodexProvider
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AnthropicProvider",
+    "AntigravityProvider",
     "AzureOpenAIProvider",
     "GenerationSettings",
     "GitHubCopilotProvider",
@@ -29,6 +31,7 @@ __all__ = [
 
 _LAZY_TYPES = {
     "AnthropicProvider": ("anthropic_provider", "AnthropicProvider"),
+    "AntigravityProvider": ("antigravity_provider", "AntigravityProvider"),
     "AzureOpenAIProvider": ("azure_openai_provider", "AzureOpenAIProvider"),
     "GitHubCopilotProvider": ("github_copilot_provider", "GitHubCopilotProvider"),
     "OpenAICodexProvider": ("openai_codex_provider", "OpenAICodexProvider"),

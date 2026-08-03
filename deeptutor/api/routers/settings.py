@@ -340,8 +340,6 @@ def _codex_http_exception(error: CodexAuthError) -> HTTPException:
             "message": error.public_message,
         },
     )
-
-
 def _provider_choices() -> dict[str, list[dict[str, Any]]]:
     """Build dropdown options for provider selection, keyed by service type."""
     from deeptutor.services.config.provider_runtime import (
@@ -366,6 +364,9 @@ def _provider_choices() -> dict[str, list[dict[str, Any]]]:
                 ),
                 "base_url": s.default_api_base,
                 "auth_mode": s.auth_mode,
+                "requires_key": not s.is_oauth,
+                "login_supported": s.name == "antigravity",
+                "login_label": "Get Antigravity API key" if s.name == "antigravity" else "",
             }
             for s in PROVIDERS
         ],
@@ -452,6 +453,18 @@ def _provider_choices() -> dict[str, list[dict[str, Any]]]:
         "imagegen": imagegen,
         "videogen": videogen,
     }
+
+
+@router.post("/providers/{provider}/login")
+async def start_provider_auth(provider: str):
+    """Open a provider's supported interactive login entry."""
+    _require_settings_admin()
+    from deeptutor.services.provider_auth import start_provider_login
+
+    try:
+        return await start_provider_login(provider)
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _api_base_source(system: dict[str, Any]) -> str:

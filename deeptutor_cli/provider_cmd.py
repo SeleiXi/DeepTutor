@@ -17,7 +17,10 @@ def register(app: typer.Typer) -> None:
     def provider_login(
         provider: str = typer.Argument(
             ...,
-            help="Provider: openai-codex (OAuth login) | github-copilot (validate existing Copilot auth)",
+            help=(
+                "Provider: openai-codex (OAuth login) | github-copilot "
+                "(validate existing Copilot auth) | antigravity (Google AI Studio API key)"
+            ),
         ),
     ) -> None:
         """Authenticate or validate provider access."""
@@ -28,9 +31,21 @@ def register(app: typer.Typer) -> None:
         if key == "github_copilot":
             maybe_run(_login_github_copilot())
             return
+        if key in {"antigravity", "google_antigravity"}:
+            _login_antigravity()
+            return
         raise typer.BadParameter(
-            f"Unknown provider `{provider}`. Supported: openai-codex, github-copilot"
+            f"Unknown provider `{provider}`. Supported: openai-codex, github-copilot, antigravity"
         )
+
+
+def _login_antigravity() -> None:
+    """Open the Google sign-in/API-key entry used by the Antigravity SDK."""
+    from deeptutor.services.provider_auth import ANTIGRAVITY_LOGIN_URL
+
+    typer.echo("Opening Google AI Studio. Sign in, create an API key, then save it in DeepTutor.")
+    typer.echo(ANTIGRAVITY_LOGIN_URL)
+    webbrowser.open(ANTIGRAVITY_LOGIN_URL)
 
 
 async def _login_openai_codex() -> None:

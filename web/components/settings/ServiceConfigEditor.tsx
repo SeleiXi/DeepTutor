@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   Info,
+  LogIn,
   Loader2,
   Pencil,
   Plus,
@@ -18,6 +19,10 @@ import { useTranslation } from "react-i18next";
 import ProviderIcon from "@/components/common/ProviderIcon";
 import { CodexOAuthCard } from "./CodexOAuthCard";
 import { isCodexOAuthProfile, isManagedCodexProfile } from "./codex-profile";
+import {
+  startProviderLogin,
+  type ProviderAuthResult,
+} from "@/lib/provider-auth-api";
 import {
   type CatalogModel,
   type CatalogProfile,
@@ -976,6 +981,9 @@ function ProfileFields({
   const { t } = useTranslation();
   const { providers, updateProfileField, updateModelField } = useSettings();
   const [extraOpen, setExtraOpen] = useState(false);
+  const [authResult, setAuthResult] = useState<ProviderAuthResult | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   const providerValue =
     service === "search" ? profile.provider || "" : profile.binding || "";
@@ -989,6 +997,22 @@ function ProfileFields({
     providerOption,
     profile,
   );
+
+  const login = async () => {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const result = await startProviderLogin(providerValue);
+      setAuthResult(result);
+      if (result.login_url) {
+        window.open(result.login_url, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
 
   const fields = isCodexOAuth
     ? { apiKey: false, baseUrl: false, baseUrlRequired: false }
@@ -1097,6 +1121,35 @@ function ProfileFields({
       {isCodexOAuth && (
         <div className="sm:col-span-2">
           <CodexOAuthCard />
+        </div>
+      )}
+      {service === "llm" && providerOption?.login_supported && (
+        <div className="sm:col-span-2 rounded-xl border border-[var(--border)]/60 bg-[var(--muted)]/20 px-3.5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-[12px] font-medium text-[var(--foreground)]">
+                {t("Provider account")}
+              </div>
+              <div className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
+                {authResult?.message ||
+                  t("Sign in to Google AI Studio, then enter the generated API key below.")}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={authBusy}
+              onClick={() => void login()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--foreground)] px-3 py-1.5 text-[12px] font-medium text-[var(--background)] disabled:opacity-50"
+            >
+              {authBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <LogIn className="h-3.5 w-3.5" />
+              )}
+              {providerOption.login_label || t("Sign in")}
+            </button>
+          </div>
+          {authError && <p className="mt-2 text-[11px] text-red-500">{authError}</p>}
         </div>
       )}
       {fields.baseUrl && (
