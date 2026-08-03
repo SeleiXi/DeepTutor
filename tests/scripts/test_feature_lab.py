@@ -29,7 +29,7 @@ def feature_lab():
 def test_manifest_has_unique_keys_branches_and_ports(feature_lab) -> None:
     features = feature_lab.FEATURES
 
-    assert len(features) == 7
+    assert len(features) == 8
     assert len({feature.key for feature in features}) == len(features)
     assert len({feature.branch for feature in features}) == len(features)
     assert len({feature.backend_port for feature in features}) == len(features)
@@ -39,6 +39,9 @@ def test_manifest_has_unique_keys_branches_and_ports(feature_lab) -> None:
     guided = next(feature for feature in features if feature.key == "guided-question")
     assert guided.branch == "feat/ask-questions-capability"
     assert guided.label == "Ask Questions capability"
+    codebuddy = next(feature for feature in features if feature.key == "codebuddy")
+    assert codebuddy.branch == "feat/codebuddy-provider"
+    assert (codebuddy.backend_port, codebuddy.frontend_port) == (8817, 3817)
 
 
 def test_select_features_accepts_keys_branches_and_all(feature_lab) -> None:

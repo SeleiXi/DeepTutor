@@ -80,6 +80,13 @@ FEATURES: tuple[Feature, ...] = (
         3816,
     ),
     Feature(
+        "codebuddy",
+        "feat/codebuddy-provider",
+        "CodeBuddy provider",
+        8817,
+        3817,
+    ),
+    Feature(
         "antigravity",
         "feat/antigravity-support",
         "Google Antigravity support",
