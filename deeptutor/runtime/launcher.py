@@ -35,6 +35,15 @@ from deeptutor.services.app_update import LAUNCHER_PID_ENV
 
 BACKEND_READY_TIMEOUT_ENV = "DEEPTUTOR_BACKEND_READY_TIMEOUT"
 FRONTEND_READY_TIMEOUT_ENV = "DEEPTUTOR_FRONTEND_READY_TIMEOUT"
+# Address both servers listen on. 0.0.0.0 keeps LAN and container access
+# working; a shared host behind a reverse proxy can pin it to 127.0.0.1.
+BIND_HOST_ENV = "DEEPTUTOR_BIND_HOST"
+DEFAULT_BIND_HOST = "0.0.0.0"
+
+
+def resolve_bind_host() -> str:
+    return os.environ.get(BIND_HOST_ENV, "").strip() or DEFAULT_BIND_HOST
+
 
 logger = logging.getLogger(__name__)
 
@@ -1521,7 +1530,8 @@ def start(
     common_env["BACKEND_PORT"] = str(backend_port)
     common_env["FRONTEND_PORT"] = str(frontend_port)
     common_env["PORT"] = str(frontend_port)
-    common_env["HOSTNAME"] = "0.0.0.0"
+    bind_host = resolve_bind_host()
+    common_env["HOSTNAME"] = bind_host
     common_env["NEXT_PUBLIC_API_BASE"] = api_base
     common_env["NEXT_PUBLIC_AUTH_ENABLED"] = "true" if auth_enabled else "false"
     # The Next.js middleware (web/proxy.ts) runs in the frontend's Node runtime
@@ -1568,7 +1578,7 @@ def start(
         "uvicorn",
         "deeptutor.api.main:app",
         "--host",
-        "0.0.0.0",
+        bind_host,
         "--port",
         str(backend_port),
         "--log-level",
