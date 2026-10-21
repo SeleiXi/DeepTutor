@@ -99,6 +99,7 @@ const CHINESE_NAMES: Readonly<Record<string, { name: string; labels: string[] }>
   volcengine: {"name": "火山引擎", "labels": ["VolcEngine", "Volcengine Ark (Seedream)", "Volcengine Ark (Seedance)"]},
   volcengine_coding_plan: {"name": "火山引擎", "labels": ["VolcEngine Coding Plan"]},
   volcengine_speech: {"name": "火山引擎豆包语音", "labels": ["Volcengine Speech (Doubao)"]},
+  edge: {"name": "微软 Edge 朗读（免费）", "labels": ["Microsoft Edge (free)"]},
   deepseek: {"name": "深度求索", "labels": ["DeepSeek"]},
   zhipu: {"name": "智谱", "labels": ["Zhipu AI", "Zhipu"]},
   dashscope: {"name": "阿里云百炼", "labels": ["DashScope", "Aliyun DashScope"]},
